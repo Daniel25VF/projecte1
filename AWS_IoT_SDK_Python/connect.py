@@ -53,7 +53,7 @@ def registrar_asistencia(id_usuari):
     conexion = conectar_db()
     cursor = conexion.cursor()
     try:
-        # 1. Obtenir el grup de l’alumne (ex: "DAM1")
+        # Obtenir el grup de l’alumne (ex: "DAM1")
         cursor.execute("SELECT Grup FROM Alumne WHERE ID_Usuari = %s", (id_usuari,))
         row = cursor.fetchone()
         if not row:
@@ -61,7 +61,7 @@ def registrar_asistencia(id_usuari):
             return
         nom_grup = row[0]
 
-        # 2. Obtenir l'ID numèric del grup a la taula Grup
+        # Obtenir l'ID numèric del grup a la taula Grup
         cursor.execute("SELECT ID_Grup FROM Grup WHERE Nom = %s", (nom_grup,))
         row = cursor.fetchone()
         if not row:
@@ -69,7 +69,7 @@ def registrar_asistencia(id_usuari):
             return
         id_grup = row[0]
 
-        # 3. Obtenir la última classe associada al grup
+        # Obtenir la última classe associada al grup
         cursor.execute("""
             SELECT ID_Classe
             FROM Classe
@@ -83,7 +83,7 @@ def registrar_asistencia(id_usuari):
             return
         id_classe = row[0]
 
-        # 4. Registrar assistència amb data i hora
+        # Registrar assistència amb data i hora
         estado = "Present"
         observaciones = "Registre automàtic"
         now = datetime.now()
@@ -208,9 +208,8 @@ except Exception as e:
     print("Error de connexió:", e)
     exit(1)
 
-client.loop_start()  # Inicia el bucle de recepció de missatges en segon pla
+client.loop_start()  
 
-# Bucle principal infinit (només per mantenir el client actiu)
 try:
     while True:
         time.sleep(1)
