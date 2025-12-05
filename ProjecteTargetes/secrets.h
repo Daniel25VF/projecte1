@@ -1,18 +1,14 @@
 // Secrets.h
-// Tus credenciales y certificados. Guarda esto con cuidado.
-// Usa PROGMEM para no ocupar RAM
-
+// Credencials i certificats privats del projecte.
 
 #pragma once
 #include <pgmspace.h>
-
 
 // WiFi
 const char WIFI_SSID[]     = "Iphone de Daniel";
 const char WIFI_PASSWORD[] = "c3d9aghkkahx";
 
-
-// AWS IoT endpoint (tu endpoint)
+// AWS IoT endpoint
 const char AWS_IOT_ENDPOINT[] = "a1f4m4en5hebao-ats.iot.us-east-1.amazonaws.com";
 
 
@@ -41,7 +37,7 @@ rqXRfboQnoZsG4q5WTP468SQvvG5
 )EOF";
 
 
-// Device Certificate (Thing certificate)
+// Device Certificate 
 static const char AWS_CERT_CRT[] PROGMEM = R"KEY(
 -----BEGIN CERTIFICATE-----
 MIIDWTCCAkGgAwIBAgIUdtZRYUk2Tenhc9Zei2koPUO92oQwDQYJKoZIhvcNAQEL
@@ -66,7 +62,7 @@ X8uJ+JoH2L2rRRzWVwjcnMAS/pf4v5uhV1ozn5HIes/x2djlD0Nx7nHRf/ywrMmU
 )KEY";
 
 
-// Device Private Key (Thing private key)
+// Device Private Key 
 static const char AWS_CERT_PRIVATE[] PROGMEM = R"KEY(
 -----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAlxLX/hm8kKhH0inevktbnDJ7hjancV5v93aQ5K38ViPNsVt2
