@@ -4,31 +4,34 @@
 #include "secrets.h"
 #include <time.h>
 
-#define AWS_IOT_CLIENT_ID "ESP32_AA"
+#define AWS_IOT_CLIENT_ID "ESP32_AA"  // Identificador del dispositiu a AWS IoT
 
-WiFiClientSecure net;
-MQTTClient awsClient(512);   // buffer aumentado
+WiFiClientSecure net;                // Client segur (TLS) per AWS IoT
+MQTTClient awsClient(512);           // Client MQTT amb buffer ampliat
 
-String awsLastMessage = "";
-bool awsMessageNew = false;
+String awsLastMessage = "";          // Últim missatge rebut des d’AWS
+bool awsMessageNew = false;          // Indica si tenim un missatge nou pendent
 
-// Callback de mensajes MQTT
+// ---------------- CALLBACK DE MISSATGES MQTT ----------------
+// Aquesta funció s’executa automàticament quan arriba un missatge MQTT
 void messageHandler(String &topic, String &payload) {
-  Serial.println("Mensaje AWS recibido:");
+  Serial.println("Missatge d'AWS rebut:");
   Serial.println(payload);
 
-  awsLastMessage = payload;
-  awsMessageNew = true;
+  awsLastMessage = payload;          // Guardem el missatge rebut
+  awsMessageNew = true;              // Marquem que és un missatge nou
 }
 
-// -------- NTP SYNC ----------
+// ------------------- SINCRONITZACIÓ NTP ---------------------
+// Sincronitza l’hora del ESP32 amb servidors NTP
 bool waitForTimeSync(int timeoutSeconds) {
-  Serial.println("Sincronizando hora NTP...");
+  Serial.println("Sincronitzant hora NTP...");
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");
 
   time_t now;
   int waited = 0;
 
+  // Esperem fins que el temps sigui vàlid
   while ((now = time(nullptr)) < 1600000000 && waited < timeoutSeconds) {
     Serial.print(".");
     delay(1000);
@@ -37,90 +40,99 @@ bool waitForTimeSync(int timeoutSeconds) {
   Serial.println();
 
   if (now < 1600000000) {
-    Serial.println("ERROR: Hora NTP NO sincronizada.");
+    Serial.println("ERROR: Hora NTP NO sincronitzada.");
     return false;
   }
 
-  Serial.println("Hora NTP OK");
+  Serial.println("Hora NTP correcta");
   return true;
 }
 
-// ---------- MQTT RECONNECT -----------
+// ------------------- RECONNEXIÓ A AWS IoT -------------------
 void reconnectAWS() {
   int intents = 0;
-  int maxAttempts = 6;
-  int backoffMs = 3000;
+  int maxAttempts = 6;    // Nombre màxim d’intents de connexió
+  int backoffMs = 3000;   // Temps d’espera entre intents (augmenta exponencialment)
 
   while (!awsClient.connected() && intents < maxAttempts) {
-    Serial.print("Intentando conexión a AWS IoT... ");
-    if (awsClient.connect(AWS_IOT_CLIENT_ID)) {
-      Serial.println("Conectado correctamente a AWS IoT!");
+    Serial.print("Intentant connexió a AWS IoT... ");
 
-      // 👉 SUSCRIPCIÓN REAL 
+    if (awsClient.connect(AWS_IOT_CLIENT_ID)) {
+      Serial.println("Connectat correctament a AWS IoT!");
+
+      // Subscripció al tema MQTT on esperem respostes
       if (!awsClient.subscribe("rfid/bbdd")) {
-        Serial.println("ERROR al suscribirse a rfid/bbdd");
+        Serial.println("ERROR en subscriure’s a rfid/bbdd");
       } else {
-        Serial.println("Suscrito correctamente a rfid/bbdd");
+        Serial.println("Subscrit correctament a rfid/bbdd");
       }
 
       return;
-    } else {
-      Serial.println("Falló la conexión, reintentando...");
+    } 
+    else {
+      Serial.println("Connexió fallida, reintentant...");
       delay(backoffMs);
-      backoffMs *= 2;
+      backoffMs *= 2;   // Backoff exponencial
       intents++;
     }
   }
 
   if (!awsClient.connected()) {
-    Serial.println("ERROR: No se pudo conectar a AWS IoT.");
+    Serial.println("ERROR: No s’ha pogut connectar a AWS IoT.");
   }
 }
 
-
-// ---------- CONFIGURACIÓN AWS ----------
+// ---------------- CONFIGURACIÓ PRINCIPAL AWS ----------------
 void SetupAWS(void (*callback)(String &, String &)) {
-  Serial.println("Configurando AWS IoT...");
+  Serial.println("Configurant AWS IoT...");
 
-  waitForTimeSync(15);
+  waitForTimeSync(15);    // Cal tenir l’hora sincronitzada per validar certificats TLS
 
-  net.setCACert(AWS_CERT_CA);
+  // Carregar certificats per a la connexió segura
+  net.setCACert(AWS_CERT_CA);       
   net.setCertificate(AWS_CERT_CRT);
   net.setPrivateKey(AWS_CERT_PRIVATE);
 
+  // Iniciar client MQTT
   awsClient.begin(AWS_IOT_ENDPOINT, 8883, net);
 
+  // Assignem la callback per als missatges
   if (callback != nullptr) {
     awsClient.onMessage(callback);
   } else {
     awsClient.onMessage(messageHandler);
   }
 
+  // Intent de connexió
   reconnectAWS();
 }
 
-// ---------- PUBLICAR ----------
+// -------------------- PUBLICACIÓ A AWS ----------------------
 void mssgAWS(const String &msg) {
+  // Ens assegurem que estem connectats
   if (!awsClient.connected()) {
     reconnectAWS();
   }
 
   if (!awsClient.connected()) {
-    Serial.println("ERROR: No conectado a AWS. No se envía.");
+    Serial.println("ERROR: No connectat a AWS. No s’envia.");
     return;
   }
 
+  // Publicació al tema MQTT rfid/tags
   if (awsClient.publish("rfid/tags", msg)) {
-    Serial.println("Mensaje enviado a AWS");
+    Serial.println("Missatge enviat a AWS");
   } else {
-    Serial.println("ERROR enviando mensaje MQTT");
+    Serial.println("ERROR enviant missatge MQTT");
   }
 }
 
-// ---------- LOOP MQTT ----------
+// ------------------- LOOP MQTT (ha d’anar al loop) --------------------
 void CheckAWS() {
+  // Si es perd la connexió → reconnectem
   if (!awsClient.connected()) {
     reconnectAWS();
   }
-  awsClient.loop();
+
+  awsClient.loop();   // Processa missatges entrants
 }
